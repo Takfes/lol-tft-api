@@ -1,17 +1,15 @@
 
 import requests, json
 import pandas as pd
+import os
+os.getcwd()
+os.chdir(r'C:\\Users\\Takis\\Google Drive\\_projects_\\lol-tft-api')
 
 # TODO : check whether the api provides live dadta ; during the match
 
-# Expires: Sun, Mar 8th, 2020 @ 1:44am (PT) in 23 hours and 59 minutes
-APIKEY = 'RGAPI-4326cd61-46aa-45a7-8436-04c5a23a531a'
-COUNT = 50
 
-# 1PlsQ5hETM
-PUUID = 'E-EdFlxIcUyJbOSNbiWb4M9MOhGT6d_v29hEuA91BvHz6JkYJ6Xdq6IETJfC_uY3egZJf5h81HWTxg'
-# PaulMich
-# puuid = 'UTJPDclizM2higGOwckRamzVdhkUj6DvW-FPq585vvGgauG70Lg3OXeEZ1roSNjEJ4BhaCYE1xCgTg'
+def url_puuid_by_name(region,name):
+    return 'https://{region}.api.riotgames.com/tft/summoner/v1/summoners/by-name/{name}'.format(region=region,name=name)
 
 def url_list_matches(puuid,count=20):
     return 'https://europe.api.riotgames.com/tft/match/v1/matches/by-puuid/{puuid}/ids?count={count}'.format(puuid = puuid, count=count)
@@ -36,15 +34,29 @@ def human_timestamp(response):
     timestamp = int(str(timestamp)[:-3])
     return datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
-# TODO : obtain items and champions data
 
+# ============================================================================================
+# USAGE
+# ============================================================================================
 
-# TODO : process to parse match_details ; either functional or oop way
+APIKEY = 'RGAPI-4326cd61-46aa-45a7-8436-04c5a23a531a'
+# Expires: Sun, Mar 8th, 2020 @ 1:44am (PT) in 23 hours and 59 minutes
+COUNT = 50
+REGION = 'eun1' # euw1
+NAME = '1PlsQ5hETM'
 
+PUUID = request_endpoint(url_puuid_by_name(REGION,NAME)).json().get('puuid')
+# 1PlsQ5hETM
+# PUUID = 'E-EdFlxIcUyJbOSNbiWb4M9MOhGT6d_v29hEuA91BvHz6JkYJ6Xdq6IETJfC_uY3egZJf5h81HWTxg'
+# PaulMich
+# puuid = 'UTJPDclizM2higGOwckRamzVdhkUj6DvW-FPq585vvGgauG70Lg3OXeEZ1roSNjEJ4BhaCYE1xCgTg'
 
 list_matches = request_endpoint(url_list_matches(PUUID)).json()
 selected_match_id = list_matches[0]
 match_details = request_endpoint(url_match_details(selected_match_id)).json()
+
+
+# TODO : process to parse match_details ; either functional or oop way
 
 
 match_details.keys()
@@ -89,4 +101,18 @@ traits_df.to_clipboard()
 traits_df.groupby('name').size().sort_values(ascending=False)
 
 units_df.to_clipboard()
-units_df.groupby('character_id').size().sort_values(ascending=False)
+units_df['name_adj'] = units_df['character_id'].apply(lambda x : x.split("_")[1])
+units_df.groupby('name_adj').size().sort_values(ascending=False)
+
+
+# ============================================================================================
+# STATIC DATA
+# ============================================================================================
+
+items = pd.read_json('items.json')
+champions = pd.read_json('champions.json')
+traits = pd.read_json('traits.json')
+hexes = pd.read_json('hexes.json')
+
+
+
