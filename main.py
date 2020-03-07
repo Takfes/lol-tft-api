@@ -1,7 +1,11 @@
 
 import requests, json
 import pandas as pd
-import os, sys
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+import os
+
 os.getcwd()
 os.chdir(r'/home/takis/Desktop/sckool/lol-tft-api')
 
@@ -33,9 +37,24 @@ def human_timestamp(response):
     timestamp = int(str(timestamp)[:-3])
     return datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
+# ============================================================================================
+# LOAD STATIC DATA
+# ============================================================================================
+
+hexes = pd.read_json('hexes.json')
+items = pd.read_json('items.json')
+traits = pd.read_json('traits.json')
+champions = pd.read_json('champions.json')
+
+# create binary columns for each trait
+traits_list = list(set([item for sublist in list(champions.traits) for item in sublist]))
+chmp = champions.copy()
+
+for t in traits_list:
+    chmp['trait_' + t] = chmp.traits.apply(lambda x : 1 if t in x else 0)
 
 # ============================================================================================
-# USAGE
+# OBTAIN AND PARSE API DATA
 # ============================================================================================
 
 APIKEY = 'RGAPI-4326cd61-46aa-45a7-8436-04c5a23a531a'
@@ -54,22 +73,8 @@ list_matches = request_endpoint(url_list_matches(PUUID)).json()
 selected_match_id = list_matches[0]
 match_details = request_endpoint(url_match_details(selected_match_id)).json()
 
-
-# TODO : process to parse match_details ; either functional or oop way
-
-
-match_details.keys()
-match_details['metadata']
-match_details['info']
-match_details['info'].keys()
-keys = list(match_details['info'].keys())
-
-# explore json data
-for key in keys:
-    print(f'>> KEY : {key}')
-    print(match_details['info'].get(key),"\n")
-
-
+# Parse json data
+match_id = match_details["metadata"].get("match_id")
 participants_puuids = match_details["metadata"].get("participants")
 timestamp = human_timestamp(match_details)
 game_length = f'{round(match_details["info"].get("game_length")/60,2)} mins'
@@ -78,45 +83,18 @@ queue_id = match_details["info"].get("queue_id")
 tft_set_number = match_details["info"].get("tft_set_number")
 participants = match_details["info"].get("participants")
 
-participants[3].keys()
-participants[3].get('gold_left')
-participants[3].get('last_round')
-participants[3].get('level')
-participants[3].get('placement')
-participants[3].get('players_eliminated')
-participants[3].get('puuid')
-participants[3].get('time_eliminated')
-participants[3].get('total_damage_to_players')
-participants[3].get('traits')
-participants[3].get('units')
-
-# pd.DataFrame(participants[3].get('traits')).set_index('name')
-# pd.DataFrame(participants[3].get('units'))
-
-for p in participants:
-    # print(p,"\n",50*"-")
-    print(p.last_round)
-
-units_df = pd.concat(pd.DataFrame(participant.get('units')).assign(puuid = participant.get('puuid')) for participant in participants)
-traits_df = pd.concat(pd.DataFrame(participant.get('traits')).assign(puuid = participant.get('puuid')) for participant in participants)
-
+# participants dataframe
 my_cols = ['puuid', 'gold_left', 'last_round', 'level', 'placement', 'players_eliminated', 'time_eliminated', 'total_damage_to_players']
 participants_df = pd.DataFrame({c : [p.get(c) for p in participants] for c in my_cols})
-# participants_df = pd.DataFrame([p.get('puuid'),p.get('gold_left'),p.get('last_round'),p.get('level'),p.get('placement'),p.get('players_eliminated'),p.get('time_eliminated'),p.get('total_damage_to_players')] for p in participants)
 
-traits_df.to_clipboard()
-traits_df.groupby('name').size().sort_values(ascending=False)
-
-units_df.to_clipboard()
+# units dataframe
+units_df = pd.concat(pd.DataFrame(participant.get('units')).assign(puuid = participant.get('puuid')) for participant in participants)
 units_df['name_adj'] = units_df['character_id'].apply(lambda x : x.split("_")[1])
-units_df.groupby('name_adj').size().sort_values(ascending=False)
 
+# traits dataframe
+traits_df = pd.concat(pd.DataFrame(participant.get('traits')).assign(puuid = participant.get('puuid')) for participant in participants)
 
-# ============================================================================================
-# STATIC DATA
-# ============================================================================================
-
-items = pd.read_json('items.json')
-champions = pd.read_json('champions.json')
-traits = pd.read_json('traits.json')
-hexes = pd.read_json('hexes.json')
+# aggregations
+traits_df[['puuid','name','num_units','tier_total','tier_current']].sort_values(by=['puuid','tier_total','tier_current'])
+traits_df.groupby('name').size().sort_values(ascending=True).plot(kind='barh')
+units_df.groupby('name_adj').size().sort_values(ascending=True).plot(kind='barh')
