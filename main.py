@@ -1,12 +1,11 @@
 
 import requests, json
 import pandas as pd
-import os
+import os, sys
 os.getcwd()
-os.chdir(r'C:\\Users\\Takis\\Google Drive\\_projects_\\lol-tft-api')
+os.chdir(r'/home/takis/Desktop/sckool/lol-tft-api')
 
 # TODO : check whether the api provides live dadta ; during the match
-
 
 def url_puuid_by_name(region,name):
     return 'https://{region}.api.riotgames.com/tft/summoner/v1/summoners/by-name/{name}'.format(region=region,name=name)
@@ -94,8 +93,16 @@ participants[3].get('units')
 # pd.DataFrame(participants[3].get('traits')).set_index('name')
 # pd.DataFrame(participants[3].get('units'))
 
-units_df = pd.concat(pd.DataFrame(x) for x in [participant.get('units') for participant in participants])
-traits_df = pd.concat(pd.DataFrame(x) for x in [participant.get('traits') for participant in participants])
+for p in participants:
+    # print(p,"\n",50*"-")
+    print(p.last_round)
+
+units_df = pd.concat(pd.DataFrame(participant.get('units')).assign(puuid = participant.get('puuid')) for participant in participants)
+traits_df = pd.concat(pd.DataFrame(participant.get('traits')).assign(puuid = participant.get('puuid')) for participant in participants)
+
+my_cols = ['puuid', 'gold_left', 'last_round', 'level', 'placement', 'players_eliminated', 'time_eliminated', 'total_damage_to_players']
+participants_df = pd.DataFrame({c : [p.get(c) for p in participants] for c in my_cols})
+# participants_df = pd.DataFrame([p.get('puuid'),p.get('gold_left'),p.get('last_round'),p.get('level'),p.get('placement'),p.get('players_eliminated'),p.get('time_eliminated'),p.get('total_damage_to_players')] for p in participants)
 
 traits_df.to_clipboard()
 traits_df.groupby('name').size().sort_values(ascending=False)
@@ -113,6 +120,3 @@ items = pd.read_json('items.json')
 champions = pd.read_json('champions.json')
 traits = pd.read_json('traits.json')
 hexes = pd.read_json('hexes.json')
-
-
-
